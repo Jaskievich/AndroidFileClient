@@ -2,6 +2,7 @@ package com.example.fileclientsocket;
 
 import android.util.Log;
 
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectOutputStream;
@@ -121,18 +122,62 @@ public class Connection
         }
         try {
             InputStream inputStream =  mSocket.getInputStream();
-            int size = data.length;
-            int count = 0, index_start = 0;
-            while (MAX_BUFF_SIZE < size) {
-                count = ReadAll(data, index_start, MAX_BUFF_SIZE, inputStream);
-                if (count <= 0) break;
-                size -= MAX_BUFF_SIZE;
-                index_start += count;
-            }
-            if(size > 0 && count != -1) count = ReadAll(data, index_start, size, inputStream);
-            if( count == -1) throw new Exception("Ошибка чтения данных ");
+            int count = ReadAll(data, 0, data.length, inputStream);
+            if( count == -1) throw new Exception("Ошибка чтения данных ("+ data.length + ")");
         } catch (IOException e) {
             throw new Exception("Ошибка чтения данных : "  + e.getMessage());
         }
     }
+
+    public void readData(FileOutputStream fos, int size_file) throws Exception {
+        if (mSocket == null || mSocket.isClosed()) {
+            throw new Exception("Ошибка чтения данных. Сокет не создан или закрыт");
+        }
+        try {
+            InputStream inputStream =  mSocket.getInputStream();
+            int start_index = 0;
+            int count = size_file > MAX_BUFF_SIZE? MAX_BUFF_SIZE: size_file;
+            byte[] buffer = new byte[count];
+            // перевод строки в байты
+            while (MAX_BUFF_SIZE < size_file) {
+                count = ReadAll(buffer, start_index, MAX_BUFF_SIZE, inputStream);
+                if (count <= 0) {
+                    if( count == -1) throw new Exception("Ошибка чтения данных ("+ buffer.length + ")");
+                    break;
+                }
+                fos.write(buffer, start_index, MAX_BUFF_SIZE );
+                start_index -= MAX_BUFF_SIZE;
+                start_index += count;
+            }
+            if(size_file > 0 && count != -1) {
+                count = ReadAll(buffer, start_index, size_file, inputStream);
+                if( count == -1) throw new Exception("Ошибка чтения данных ("+ buffer.length + ")");
+                fos.write(buffer, start_index, size_file );
+            }
+
+        } catch (IOException e) {
+            throw new Exception("Ошибка чтения данных : "  + e.getMessage());
+        }
+    }
+
+//    public void readData(byte[] data) throws Exception {
+//        if (mSocket == null || mSocket.isClosed()) {
+//            throw new Exception("Ошибка чтения данных. Сокет не создан или закрыт");
+//        }
+//        try {
+//            InputStream inputStream =  mSocket.getInputStream();
+//            int size = data.length;
+//            int count = 0, index_start = 0;
+//            while (MAX_BUFF_SIZE < size) {
+//                count = ReadAll(data, index_start, MAX_BUFF_SIZE, inputStream);
+//                if (count <= 0) break;
+//                size -= MAX_BUFF_SIZE;
+//                index_start += count;
+//            }
+//            if(size > 0 && count != -1) count = ReadAll(data, index_start, size, inputStream);
+//            if( count == -1) throw new Exception("Ошибка чтения данных ("+ data.length + ")");
+//        } catch (IOException e) {
+//            throw new Exception("Ошибка чтения данных : "  + e.getMessage());
+//        }
+//    }
 }

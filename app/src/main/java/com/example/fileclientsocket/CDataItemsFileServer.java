@@ -1,7 +1,11 @@
 package com.example.fileclientsocket;
 
+import android.os.Environment;
 import android.util.Log;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
@@ -30,6 +34,7 @@ public class CDataItemsFileServer extends AListItemsFile{
                  //   m_connect = null;
                 } catch (Exception e) {
                     Log.e(LOG_TAG, e.getMessage());
+                    if( p_Callback != null) p_Callback.onCallback(e);
                     m_connect.closeConnection();
                 }
             }
@@ -63,7 +68,7 @@ public class CDataItemsFileServer extends AListItemsFile{
         TBuffHeader header = new TBuffHeader(0, path.length(), 0);
         byte[] dataHeader = header.GetHeaderByte();
         m_connect.sendData(dataHeader);
-        m_connect.sendData(path.toString().getBytes());
+        m_connect.sendData(path.toString().getBytes("Windows-1251"));
         m_connect.readData(dataHeader);
         MyUtility.ReverseArray(dataHeader);
         header.SetHeaderByte(dataHeader);
@@ -109,7 +114,7 @@ public class CDataItemsFileServer extends AListItemsFile{
         Charset charset = StandardCharsets.US_ASCII;
         path.append(charset.decode(ByteBuffer.wrap(data)).toString());
         m_connect.closeConnection();
-        header = null;
+         header = null;
     }
 
     @Override
@@ -142,6 +147,7 @@ public class CDataItemsFileServer extends AListItemsFile{
                     //   m_connect = null;
                 } catch (Exception e) {
                     Log.e(LOG_TAG, e.getMessage());
+                    if( p_Callback != null) p_Callback.onCallback(e);
                     m_connect.closeConnection();
                 }
             }
@@ -157,6 +163,24 @@ public class CDataItemsFileServer extends AListItemsFile{
     @Override
     public boolean CopyFile(String nameFile) {
 
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                CLoaderFile loaderFile = new CLoaderFile(m_connect);
+                StringBuilder strb = new StringBuilder(parentPath);
+                strb.append("/");
+                strb.append(nameFile);
+                loaderFile.folder_in = strb.toString();
+                loaderFile.name_file = nameFile;
+                File files = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM);
+                try {
+                    loaderFile.WriteFile(files.toString());
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    if( p_Callback != null) p_Callback.onCallback(e);
+                }
+            }
+        }).start();
         return false;
     }
 
@@ -215,4 +239,43 @@ class TBuffHeader
         size_file = byteBuffer.getInt(4);
         param = byteBuffer.getInt(8);
     }
+
+}
+
+class CLoaderFile
+{
+    public String folder_in;
+    public String name_file;
+    private Connection m_connect;
+
+    public CLoaderFile(Connection cConnection)
+    {
+        this.m_connect = cConnection;
+    }
+
+    public void WriteFile( String folder_out  ) throws Exception {
+
+        StringBuilder strb = new StringBuilder(folder_out);
+        strb.append("/");
+        strb.append(name_file);
+
+        m_connect.openConnection();
+        TBuffHeader header = new TBuffHeader(2, folder_in.length(), 0);
+        byte[] dataHeader = header.GetHeaderByte();
+        m_connect.sendData(dataHeader);
+        m_connect.sendData(folder_in.toString().getBytes("Windows-1251"));
+        m_connect.readData(dataHeader);
+        MyUtility.ReverseArray(dataHeader);
+        header.SetHeaderByte(dataHeader);
+
+        try(FileOutputStream fos=new FileOutputStream(strb.toString()))
+        {
+            m_connect.readData(fos, header.size_file);
+        }
+        catch(IOException ex){
+
+        }
+        m_connect.closeConnection();
+    }
+
 }
