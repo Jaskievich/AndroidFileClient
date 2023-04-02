@@ -102,16 +102,19 @@ public class Connection
         closeConnection();
     }
 
-    private int ReadAll(byte[] data, int start_ind, int size, InputStream inputStream) throws IOException {
-        int count = 0, size_total = size;
+    private int ReadAll(byte[] data, int size, InputStream inputStream) throws IOException {
+        int count = 0, start_ind = 0, size_total = size;
         while(size > 0) {
             count = inputStream.read(data, start_ind, size);
             if( count < 1 ){
-                if( count == 0) break;
+                  if( count == 0) break;
                 return count;
             }
             start_ind += count;
+            Log.d("ReadAll count", Integer.toString(count));
+            Log.d("ReadAll", Integer.toString(start_ind));
             size -= count;
+            Log.d("ReadAll size", Integer.toString(size));
         }
         return size_total - size;
     }
@@ -122,7 +125,7 @@ public class Connection
         }
         try {
             InputStream inputStream =  mSocket.getInputStream();
-            int count = ReadAll(data, 0, data.length, inputStream);
+            int count = ReadAll(data, data.length, inputStream);
             if( count == -1) throw new Exception("Ошибка чтения данных ("+ data.length + ")");
         } catch (IOException e) {
             throw new Exception("Ошибка чтения данных : "  + e.getMessage());
@@ -135,24 +138,22 @@ public class Connection
         }
         try {
             InputStream inputStream =  mSocket.getInputStream();
-            int start_index = 0;
             int count = size_file > MAX_BUFF_SIZE? MAX_BUFF_SIZE: size_file;
             byte[] buffer = new byte[count];
             // перевод строки в байты
             while (MAX_BUFF_SIZE < size_file) {
-                count = ReadAll(buffer, start_index, MAX_BUFF_SIZE, inputStream);
+                count = ReadAll(buffer,  MAX_BUFF_SIZE, inputStream);
                 if (count <= 0) {
-                    if( count == -1) throw new Exception("Ошибка чтения данных ("+ buffer.length + ")");
+                    if( count == -1) throw new Exception("Ошибка чтения данных ("+ buffer.length+")");
                     break;
                 }
-                fos.write(buffer, start_index, MAX_BUFF_SIZE );
-                start_index -= MAX_BUFF_SIZE;
-                start_index += count;
+                fos.write(buffer, 0, MAX_BUFF_SIZE );
+                size_file -= MAX_BUFF_SIZE;
             }
             if(size_file > 0 && count != -1) {
-                count = ReadAll(buffer, start_index, size_file, inputStream);
+                count = ReadAll(buffer, size_file, inputStream);
                 if( count == -1) throw new Exception("Ошибка чтения данных ("+ buffer.length + ")");
-                fos.write(buffer, start_index, size_file );
+                fos.write(buffer, 0, size_file );
             }
 
         } catch (IOException e) {
